@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MargePro - Gestion de commerce</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: #f3f6fb;
+      color: #172033;
+    }
+    header {
+      background: #123b73;
+      color: white;
+      padding: 24px 18px;
+    }
+    header h1 { margin: 0 0 7px; }
+    header p { margin: 0; }
+    main { max-width: 800px; margin: auto; padding: 16px; }
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 12px;
+      margin-bottom: 18px;
+    }
+    .card, section {
+      background: white;
+      border-radius: 12px;
+      padding: 16px;
+      box-shadow: 0 2px 8px #0000000d;
+      margin-bottom: 15px;
+    }
+    .stats .card { margin: 0; }
+    .label { color: #68758a; font-size: 14px; }
+    .number { font-size: 22px; font-weight: bold; margin-top: 8px; }
+    h2 { font-size: 19px; margin-top: 0; }
+    input, button {
+      width: 100%;
+      padding: 12px;
+      margin: 6px 0;
+      border-radius: 8px;
+      font-size: 15px;
+    }
+    input { border: 1px solid #ccd5e2; }
+    button {
+      border: 0;
+      background: #1769d2;
+      color: white;
+      font-weight: bold;
+      cursor: pointer;
+    }
+    .danger { background: #c0392b; }
+    .item {
+      border-top: 1px solid #e5e9f0;
+      padding: 12px 0;
+      overflow-wrap: anywhere;
+    }
+    .item strong { display: block; margin-bottom: 5px; }
+    .small { font-size: 13px; color: #68758a; }
+    .empty { color: #68758a; font-size: 14px; }
+    footer { text-align: center; padding: 20px; color: #68758a; }
+    @media (max-width: 420px) {
+      .number { font-size: 19px; }
+      main { padding: 11px; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>📊 MargePro</h1>
+    <p>Gérez votre commerce simplement.</p>
+  </header>
+
+  <main>
+    <div class="stats">
+      <div class="card">
+        <div class="label">Produits enregistrés</div>
+        <div class="number" id="totalProduits">0</div>
+      </div>
+      <div class="card">
+        <div class="label">Valeur du stock</div>
+        <div class="number" id="valeurStock">0 FCFA</div>
+      </div>
+      <div class="card">
+        <div class="label">Ventes totales</div>
+        <div class="number" id="totalVentes">0 FCFA</div>
+      </div>
+      <div class="card">
+        <div class="label">Bénéfice estimé</div>
+        <div class="number" id="benefice">0 FCFA</div>
+      </div>
+    </div>
+
+    <section>
+      <h2>📦 Ajouter un produit</h2>
+      <input id="nomProduit" placeholder="Nom du produit">
+      <input id="prixAchat" type="number" min="0" placeholder="Prix d'achat (FCFA)">
+      <input id="prixVente" type="number" min="0" placeholder="Prix de vente (FCFA)">
+      <input id="quantite" type="number" min="0" step="1" placeholder="Quantité en stock">
+      <button onclick="ajouterProduit()">Ajouter le produit</button>
+    </section>
+
+    <section>
+      <h2>🧾 Enregistrer une vente</h2>
+      <input id="produitVente" placeholder="Nom exact du produit">
+      <input id="quantiteVente" type="number" min="1" step="1" placeholder="Quantité vendue">
+      <button onclick="enregistrerVente()">Enregistrer la vente</button>
+      <p class="small">La quantité vendue sera retirée du stock automatiquement.</p>
+    </section>
+
+    <section>
+      <h2>💸 Ajouter une dépense</h2>
+      <input id="nomDepense" placeholder="Motif de la dépense">
+      <input id="montantDepense" type="number" min="0" placeholder="Montant (FCFA)">
+      <button onclick="ajouterDepense()">Enregistrer la dépense</button>
+      <p class="small">Les dépenses sont déduites du bénéfice estimé.</p>
+    </section>
+
+    <section>
+      <h2>📋 Mes produits</h2>
+      <div id="listeProduits" class="empty">Aucun produit pour le moment.</div>
+    </section>
+
+    <section>
+      <h2>💳 Mes dépenses</h2>
+      <div id="listeDepenses" class="empty">Aucune dépense pour le moment.</div>
+    </section>
+
+    <section>
+      <h2>⚠️ Réinitialiser les données</h2>
+      <p class="small">Cette action efface les produits, les ventes et les dépenses enregistrés sur cet appareil.</p>
+      <button class="danger" onclick="reinitialiser()">Effacer toutes les données</button>
+    </section>
+  </main>
+
+  <footer>MargePro · Une gestion plus simple de votre commerce</footer>
+
+  <script>
+    let produits = JSON.parse(localStorage.getItem("margepro_produits") || "[]");
+    let depenses = JSON.parse(localStorage.getItem("margepro_depenses") || "[]");
+    let ventes = JSON.parse(localStorage.getItem("margepro_ventes") || "[]");
+
+    function sauvegarder() {
+      localStorage.setItem("margepro_produits", JSON.stringify(produits));
+      localStorage.setItem("margepro_depenses", JSON.stringify(depenses));
+      localStorage.setItem("margepro_ventes", JSON.stringify(ventes));
+      afficher();
+    }
+
+    function nombre(valeur) {
+      return Number(valeur).toLocaleString("fr-FR") + " FCFA";
+    }
+
+    function ajouterProduit() {
+      const nom = document.getElementById("nomProduit").value.trim();
+      const achat = Number(document.getElementById("prixAchat").value);
+      const vente = Number(document.getElementById("prixVente").value);
+      const qte = Number(document.getElementById("quantite").value);
+
+      if (!nom || document.getElementById("prixAchat").value === "" ||
+          document.getElementById("prixVente").value === "" ||
+          document.getElementById("quantite").value === "" ||
+          achat < 0 || vente < 0 || qte < 0 ||
+          !Number.isInteger(qte)) {
+        alert("Remplissez correctement tous les champs.");
+        return;
+      }
+
+      if (produits.some(p => p.nom.toLowerCase() === nom.toLowerCase())) {
+        alert("Ce produit existe déjà. Utilisez son nom exact pour les ventes.");
+        return;
+      }
+
+      produits.push({ nom, achat, vente, qte });
+      sauvegarder();
+      ["nomProduit", "prixAchat", "prixVente", "quantite"].forEach(id => {
+        document.getElementById(id).value = "";
+      });
+      alert("Produit ajouté !");
+    }
+
+    function enregistrerVente() {
+      const nom = document.getElementById("produitVente").value.trim();
+      const champQte = document.getElementById("quantiteVente").value;
+      const qte = Number(champQte);
+      const p = produits.find(x => x.nom.toLowerCase() === nom.toLowerCase());
+
+      if (!p || !nom || champQte === "" || !Number.isInteger(qte) || qte <= 0) {
+        alert("Vérifiez le nom du produit et la quantité.");
+        return;
+      }
+      if (qte > p.qte) {
+        alert("Stock insuffisant. Stock disponible : " + p.qte);
+        return;
+      }
+
+      p.qte -= qte;
+      ventes.push({
+        nom: p.nom,
+        qte,
+        montant: p.vente * qte,
+        cout: p.achat * qte,
+        date: new Date().toLocaleString("fr-FR")
+      });
+      sauvegarder();
+      document.getElementById("produitVente").value = "";
+      document.getElementById("quantiteVente").value = "";
+      alert("Vente enregistrée !");
+    }
+
+    function ajouterDepense() {
+      const nom = document.getElementById("nomDepense").value.trim();
+      const champMontant = document.getElementById("montantDepense").value;
+      const montant = Number(champMontant);
+
+      if (!nom || champMontant === "" || montant < 0) {
+        alert("Saisissez le motif et un montant valide.");
+        return;
+      }
+
+      depenses.push({ nom, montant, date: new Date().toLocaleString("fr-FR") });
+      sauvegarder();
+      document.getElementById("nomDepense").value = "";
+      document.getElementById("montantDepense").value = "";
+      alert("Dépense enregistrée !");
+    }
+
+    function afficher() {
+      const valeurStock = produits.reduce((s, p) => s + p.achat * p.qte, 0);
+      const totalVentes = ventes.reduce((s, v) => s + v.montant, 0);
+      const margeVentes = ventes.reduce((s, v) => s + v.montant - v.cout, 0);
+      const totalDepenses = depenses.reduce((s, d) => s + d.montant, 0);
+      const benefice = margeVentes - totalDepenses;
+
+      document.getElementById("totalProduits").textContent = produits.length;
+      document.getElementById("valeurStock").textContent = nombre(valeurStock);
+      document.getElementById("totalVentes").textContent = nombre(totalVentes);
+      document.getElementById("benefice").textContent = nombre(benefice);
+
+      const liste = document.getElementById("listeProduits");
+      if (produits.length === 0) {
+        liste.innerHTML = '<p class="empty">Aucun produit pour le moment.</p>';
+      } else {
+        liste.innerHTML = produits.map((p, i) =>
+          '<div class="item"><strong>' + securiser(p.nom) + '</strong>' +
+          '<div>Stock : ' + p.qte + '</div>' +
+          '<div>Prix d’achat : ' + nombre(p.achat) + '</div>' +
+          '<div>Prix de vente : ' + nombre(p.vente) + '</div>' +
+          '<button class="danger" onclick="supprimerProduit(' + i + ')">Supprimer</button></div>'
+        ).join("");
+      }
+
+      const listeD = document.getElementById("listeDepenses");
+      if (depenses.length === 0) {
+        listeD.innerHTML = '<p class="empty">Aucune dépense pour le moment.</p>';
+      } else {
+        listeD.innerHTML = depenses.map(d =>
+          '<div class="item"><strong>' + securiser(d.nom) + '</strong>' +
+          '<div>' + nombre(d.montant) + '</div><div class="small">' +
+          securiser(d.date) + '</div></div>'
+        ).join("");
+      }
+    }
+
+    function securiser(texte) {
+      return String(texte).replace(/[&<>"']/g, c => ({
+        "&": "&amp;", "<": "&lt;", ">": "&gt;",
+        '"': "&quot;", "'": "&#39;"
+      })[c]);
+    }
+
+    function supprimerProduit(index) {
+      if (confirm("Supprimer ce produit ?")) {
+        produits.splice(index, 1);
+        sauvegarder();
+      }
+    }
+
+    function reinitialiser() {
+      if (confirm("Attention : toutes les données seront effacées. Continuer ?")) {
+        produits = [];
+        depenses = [];
+        ventes = [];
+        sauvegarder();
+      }
+    }
+
+    afficher();
+  </script>
+</body>
+        </html>
